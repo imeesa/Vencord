@@ -5,20 +5,17 @@
  */
 
 import { IpcMainInvokeEvent } from "electron";
-
 interface SandcatResponse {
-    url?: string;
+    image?: string;
 }
 
-export async function getSandcatImage(_: IpcMainInvokeEvent) {
-    const url = "https://sandcat.link/api/json";
-
+export async function getSandcatImage(_: IpcMainInvokeEvent, apiUrl: string, imageTimeout: number) {
     try {
         // Add timeout to prevent hanging requests
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), imageTimeout);
 
-        const res = await fetch(url, {
+        const res = await fetch(apiUrl, {
             method: "GET",
             signal: controller.signal
         });
@@ -36,14 +33,14 @@ export async function getSandcatImage(_: IpcMainInvokeEvent) {
             throw new Error("Invalid response from Sandcat API: data is not an object");
         }
 
-        if (!data.url || typeof data.url !== "string") {
+        if (!data.image || typeof data.image !== "string") {
             throw new Error("Invalid response from Sandcat API: missing or invalid image URL");
         }
 
         const imageController = new AbortController();
-        const imageTimeoutId = setTimeout(() => imageController.abort(), 10000);
+        const imageTimeoutId = setTimeout(() => imageController.abort(), imageTimeout);
 
-        const image = await fetch(data.url, { signal: imageController.signal });
+        const image = await fetch(data.image, { signal: imageController.signal });
 
         clearTimeout(imageTimeoutId);
 
@@ -56,7 +53,7 @@ export async function getSandcatImage(_: IpcMainInvokeEvent) {
         // Convert ArrayBuffer to regular array for IPC transmission
         const buffer = new Uint8Array(imageData);
         const mimeType = image.headers.get("Content-Type") || "image/png";
-        const filename = data.url.split("/").pop() || "sandcat.png";
+        const filename = data.image.split("/").pop() || "sandcat.png";
 
         // Create a simple serializable object
         const result = {
